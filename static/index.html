@@ -9,14 +9,19 @@
 </head>
 <body>
 
+  <div id="lang-switch" class="lang-switch">
+    <button data-lang="ru">RU</button>
+    <button data-lang="en">EN</button>
+  </div>
+
   <!-- Экран входа -->
   <div id="login-view" class="hidden">
     <form id="login-form" class="login-card" autocomplete="off">
       <div class="login-logo">🎞️</div>
       <h1>MediaVault</h1>
-      <p class="login-sub">Личное медиахранилище</p>
-      <input type="password" id="login-password" placeholder="Пароль" autocomplete="current-password" autofocus>
-      <button type="submit" class="btn primary wide">Войти</button>
+      <p class="login-sub" data-i18n="login_sub">Личное медиахранилище</p>
+      <input type="password" id="login-password" data-i18n-ph="login_password_ph" placeholder="Пароль" autocomplete="current-password" autofocus>
+      <button type="submit" class="btn primary wide" data-i18n="login_btn">Войти</button>
       <div id="login-error" class="login-error"></div>
     </form>
   </div>
@@ -26,12 +31,12 @@
     <header class="topbar">
       <div class="brand">🎞️ MediaVault</div>
       <nav class="tabs">
-        <button class="tab active" data-view="media">Медиа</button>
-        <button class="tab" data-view="downloads">Загрузки <span id="jobs-badge" class="badge hidden"></span></button>
+        <button class="tab active" data-view="media" data-i18n="tab_media">Медиа</button>
+        <button class="tab" data-view="downloads"><span data-i18n="tab_downloads">Загрузки</span> <span id="jobs-badge" class="badge hidden"></span></button>
       </nav>
       <div class="topbar-right">
-        <button id="settings-btn" class="icon-btn" title="Настройки">⚙️</button>
-        <button id="logout-btn" class="btn ghost small">Выйти</button>
+        <button id="settings-btn" class="icon-btn" title="Settings">⚙️</button>
+        <button id="logout-btn" class="btn ghost small" data-i18n="logout">Выйти</button>
       </div>
     </header>
 
@@ -40,15 +45,15 @@
       <section id="view-media" class="view">
         <aside class="sidebar">
           <div class="sidebar-head">
-            <span>Директории</span>
-            <button id="add-dir-btn" class="icon-btn" title="Подключить директорию">＋</button>
+            <span data-i18n="sidebar_title">Директории</span>
+            <button id="add-dir-btn" class="icon-btn" data-i18n-title="add_dir_title" title="Подключить директорию">＋</button>
           </div>
           <div id="dirs-list"></div>
         </aside>
         <div class="browser">
           <div class="browser-top">
             <div id="breadcrumb" class="breadcrumb"></div>
-            <button id="mkdir-btn" class="btn ghost small" title="Новая папка">📁 +</button>
+            <button id="mkdir-btn" class="btn ghost small" data-i18n="mkdir_btn" title="Новая папка">📁 +</button>
           </div>
           <div id="grid" class="grid"></div>
           <div id="empty-state" class="empty-state hidden"></div>
@@ -59,12 +64,12 @@
       <section id="view-downloads" class="view hidden">
         <div class="dl-grid">
           <div class="card">
-            <h3>⬇️ Видео через yt-dlp</h3>
+            <h3 data-i18n="yt_card_title">⬇️ Видео через yt-dlp</h3>
             <div class="field">
-              <label>Ссылка на видео (YouTube, TikTok, VK и др.)</label>
+              <label data-i18n="yt_url_label">Ссылка на видео (YouTube, TikTok, VK и др.)</label>
               <input type="url" id="ytdlp-url" placeholder="https://youtube.com/watch?v=..." spellcheck="false">
             </div>
-            <button id="fetch-formats-btn" class="btn ghost">Получить информацию</button>
+            <button id="fetch-formats-btn" class="btn ghost" data-i18n="fetch_info">Получить информацию</button>
 
             <div id="format-info" class="format-info hidden">
               <img id="fi-thumb" class="fi-thumb" alt="">
@@ -76,57 +81,57 @@
 
             <div id="quality-block" class="hidden">
               <div class="quality-options">
-                <label class="radio"><input type="radio" name="quality" value="best" checked><span>Лучшее качество</span></label>
-                <label class="radio"><input type="radio" name="quality" value="audio"><span>Только аудио (MP3)</span></label>
-                <label class="radio"><input type="radio" name="quality" value="manual"><span>Выбрать вручную</span></label>
+                <label class="radio"><input type="radio" name="quality" value="best" checked><span data-i18n="quality_best">Лучшее качество</span></label>
+                <label class="radio"><input type="radio" name="quality" value="audio"><span data-i18n="quality_audio">Только аудио (MP3)</span></label>
+                <label class="radio"><input type="radio" name="quality" value="manual"><span data-i18n="quality_manual">Выбрать вручную</span></label>
               </div>
               <div id="format-select-wrap" class="hidden">
                 <select id="format-select"></select>
               </div>
-            <div class="field">
-              <label>Куда сохранить</label>
-              <select id="ytdlp-dir"></select>
-            </div>
-            <div class="field">
-              <label>Прокси для этой загрузки</label>
-              <select id="ytdlp-proxy">
-                <option value="">Как в настройках</option>
-                <option value="tor">Tor (127.0.0.1:9050)</option>
-                <option value="none">Без прокси</option>
-              </select>
-            </div>
-            <button id="ytdlp-start" class="btn primary wide">Скачать</button>
+              <div class="field">
+                <label data-i18n="save_to">Куда сохранить</label>
+                <select id="ytdlp-dir"></select>
+              </div>
+              <div class="field">
+                <label data-i18n="proxy_for_download">Прокси для этой загрузки</label>
+                <select id="ytdlp-proxy">
+                  <option value="" data-i18n="proxy_as_settings">Как в настройках</option>
+                  <option value="tor">Tor (127.0.0.1:9050)</option>
+                  <option value="none" data-i18n="proxy_none">Без прокси</option>
+                </select>
+              </div>
+              <button id="ytdlp-start" class="btn primary wide" data-i18n="download_btn">Скачать</button>
             </div>
           </div>
 
           <div class="card">
-            <h3>🔗 Файл по прямой ссылке</h3>
+            <h3 data-i18n="direct_card_title">🔗 Файл по прямой ссылке</h3>
             <div class="field">
-              <label>URL файла</label>
+              <label data-i18n="direct_url_label">URL файла</label>
               <input type="url" id="direct-url" placeholder="https://example.com/file.zip" spellcheck="false">
             </div>
             <div class="field">
-              <label>Имя файла (необязательно)</label>
-              <input type="text" id="direct-filename" placeholder="Как сохранить">
+              <label data-i18n="direct_filename_label">Имя файла (необязательно)</label>
+              <input type="text" id="direct-filename" data-i18n-ph="direct_filename_ph" placeholder="Как сохранить">
             </div>
             <div class="field">
-              <label>Куда сохранить</label>
+              <label data-i18n="save_to">Куда сохранить</label>
               <select id="direct-dir"></select>
             </div>
             <div class="field">
-              <label>Прокси для этой загрузки</label>
+              <label data-i18n="proxy_for_download">Прокси для этой загрузки</label>
               <select id="direct-proxy">
-                <option value="">Как в настройках</option>
+                <option value="" data-i18n="proxy_as_settings">Как в настройках</option>
                 <option value="tor">Tor (127.0.0.1:9050)</option>
-                <option value="none">Без прокси</option>
+                <option value="none" data-i18n="proxy_none">Без прокси</option>
               </select>
             </div>
-            <button id="direct-start" class="btn primary wide">Скачать</button>
+            <button id="direct-start" class="btn primary wide" data-i18n="download_btn">Скачать</button>
           </div>
         </div>
 
         <div class="card">
-          <h3>Очередь загрузок</h3>
+          <h3 data-i18n="jobs_queue">Очередь загрузок</h3>
           <div id="jobs-list" class="jobs-list"></div>
         </div>
       </section>
@@ -140,9 +145,9 @@
       <div class="viewer-head">
         <div id="viewer-title" class="viewer-title"></div>
         <div class="viewer-actions">
-          <a id="viewer-download" class="btn ghost small" href="#">⬇ Скачать</a>
-          <button id="viewer-delete" class="btn danger small">🗑 Удалить</button>
-          <button class="icon-btn" data-close="viewer" title="Закрыть">✕</button>
+          <a id="viewer-download" class="btn ghost small" href="#"><span data-i18n="download_btn">⬇ Скачать</span></a>
+          <button id="viewer-delete" class="btn danger small" data-i18n="delete_btn">🗑 Удалить</button>
+          <button class="icon-btn" data-close="viewer" title="Close">✕</button>
         </div>
       </div>
       <div id="viewer-content" class="viewer-content"></div>
@@ -154,19 +159,19 @@
   <div id="dir-modal" class="modal hidden">
     <div class="modal-backdrop" data-close="dir-modal"></div>
     <div class="modal-card">
-      <h3 id="dir-modal-title">Подключить директорию</h3>
+      <h3 id="dir-modal-title"></h3>
       <div class="field">
-        <label>Название</label>
-        <input type="text" id="dir-name" placeholder="Например: Фильмы">
+        <label data-i18n="dir_name_label">Название</label>
+        <input type="text" id="dir-name" placeholder="Movies" spellcheck="false">
       </div>
       <div class="field">
-        <label>Абсолютный путь на сервере</label>
+        <label data-i18n="dir_path_label">Абсолютный путь на сервере</label>
         <input type="text" id="dir-path" placeholder="/mnt/movies" spellcheck="false">
       </div>
       <div id="dir-modal-error" class="login-error"></div>
       <div class="modal-actions">
-        <button class="btn ghost" data-close="dir-modal">Отмена</button>
-        <button id="dir-save" class="btn primary">Сохранить</button>
+        <button class="btn ghost" data-close="dir-modal" data-i18n="cancel">Отмена</button>
+        <button id="dir-save" class="btn primary" data-i18n="save">Сохранить</button>
       </div>
     </div>
   </div>
@@ -175,29 +180,46 @@
   <div id="settings-modal" class="modal hidden">
     <div class="modal-backdrop" data-close="settings-modal"></div>
     <div class="modal-card">
-      <h3>⚙️ Настройки</h3>
+      <h3 data-i18n="settings_title">⚙️ Настройки</h3>
       <div class="field">
-        <label>Прокси по умолчанию (Tor, HTTP, SOCKS)</label>
+        <label data-i18n="proxy_default_label">Прокси по умолчанию (Tor, HTTP, SOCKS)</label>
         <select id="settings-proxy-mode">
-          <option value="">Без прокси (напрямую)</option>
+          <option value="" data-i18n="proxy_mode_none">Без прокси (напрямую)</option>
           <option value="tor">Tor — socks5://127.0.0.1:9050</option>
-          <option value="custom">Свой прокси…</option>
+          <option value="custom" data-i18n="proxy_mode_custom">Свой прокси…</option>
         </select>
       </div>
       <div class="field hidden" id="settings-proxy-custom-wrap">
-        <label>Адрес прокси</label>
-        <input type="text" id="settings-proxy-custom" placeholder="socks5://127.0.0.1:1080 или http://user:pass@host:port" spellcheck="false">
+        <label data-i18n="proxy_addr_label">Адрес прокси</label>
+        <input type="text" id="settings-proxy-custom" placeholder="socks5://127.0.0.1:1080 / http://user:pass@host:port" spellcheck="false">
       </div>
       <div id="tor-status" class="status-line"></div>
       <div class="field">
-        <label>Cookies.txt для yt-dlp (необязательно)</label>
-        <input type="text" id="settings-cookies" placeholder="/path/to/cookies.txt — если YouTube просит подтвердить, что вы не робот" spellcheck="false">
+        <label data-i18n="cookies_label">Cookies.txt для yt-dlp (необязательно)</label>
+        <input type="text" id="settings-cookies" placeholder="/path/to/cookies.txt" spellcheck="false">
       </div>
-      <div class="hint">Если сайты заблокированы (YouTube и т.п.) — установите Tor: <code>apt install tor</code> / <code>apk add tor</code> и выберите его выше.</div>
+      <div class="hint" data-i18n-html="proxy_hint"></div>
+
+      <h3 class="settings-section" data-i18n="change_password_title">🔑 Смена пароля</h3>
+      <div class="field">
+        <label data-i18n="current_password">Текущий пароль</label>
+        <input type="password" id="pw-current" autocomplete="current-password">
+      </div>
+      <div class="field">
+        <label data-i18n="new_password">Новый пароль</label>
+        <input type="password" id="pw-new" autocomplete="new-password">
+      </div>
+      <div class="field">
+        <label data-i18n="repeat_password">Повторите новый пароль</label>
+        <input type="password" id="pw-repeat" autocomplete="new-password">
+      </div>
+      <div id="pw-error" class="login-error"></div>
+      <button id="pw-change-btn" class="btn ghost" data-i18n="change_password_btn">Сменить пароль</button>
+
       <div id="settings-error" class="login-error"></div>
       <div class="modal-actions">
-        <button class="btn ghost" data-close="settings-modal">Отмена</button>
-        <button id="settings-save" class="btn primary">Сохранить</button>
+        <button class="btn ghost" data-close="settings-modal" data-i18n="cancel">Отмена</button>
+        <button id="settings-save" class="btn primary" data-i18n="save">Сохранить</button>
       </div>
     </div>
   </div>

@@ -12,6 +12,10 @@ app = FastAPI(title="MediaVault", docs_url=None, redoc_url=None)
 @app.on_event("startup")
 def startup() -> None:
     THUMB_DIR.mkdir(parents=True, exist_ok=True)
+    generated = auth.ensure_credentials()
+    if generated:
+        print(f"\n[MediaVault] Пароль для входа: {generated}\n"
+              f"[MediaVault] Сохранён как хэш в data/auth.json — при утере сменить через сброс.\n")
     if not get_dirs():
         print("[MediaVault] Подключённых директорий пока нет — добавьте их в веб-интерфейсе.")
 

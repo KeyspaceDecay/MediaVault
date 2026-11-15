@@ -1,94 +1,116 @@
 # 🎞️ MediaVault
 
-Личное медиахранилище с веб-интерфейсом: удобный просмотр, скачивание видео через **yt-dlp** (лучшее качество или выбор формата), загрузка файлов по прямым ссылкам, подключение и управление директориями. Поддержка **Tor / прокси** для обхода блокировок.
+A self-hosted personal media vault with a web UI: browse and stream your collection, download videos via **yt-dlp** (best quality or manual format selection), fetch files by direct URL, and manage multiple storage directories. Built-in **Tor / proxy** support for blocked sites and **RU/EN** interface.
 
-## Возможности
+## Features
 
-- **Просмотр медиа** — галерея с миниатюрами (видео через ffmpeg, изображения через Pillow), видеоплеер с перемоткой (HTTP Range), предпросмотр изображений и аудио
-- **yt-dlp** — получение информации о видео (название, длительность, превью), выбор качества: лучшее / только аудио (MP3) / конкретный формат из списка; живой прогресс, скорость, ETA, отмена
-- **Прямые ссылки** — скачивание любых файлов по URL с прогрессом
-- **Директории** — подключение нескольких папок сервера, навигация, создание папок, удаление файлов, скачивание
-- **Tor и прокси** — глобальный прокси в настройках (Tor `socks5://`, HTTP, SOCKS) + выбор прокси для каждой загрузки отдельно
-- **Безопасность** — вход по паролю, подписанные сессии, защита от перебора, защита от path-traversal
-- `YTDLP_NO_LAZY_EXTRACTORS=1` и EJS-компоненты включены из коробки
+- **Media browsing** — gallery with thumbnails (video via ffmpeg, images via Pillow), video player with seeking (HTTP Range), image and audio preview, download and delete
+- **yt-dlp** — fetch video info (title, duration, thumbnail, full format list), pick *Best quality* / *Audio only (MP3)* / a specific format; live progress, speed, ETA, cancel
+- **Direct URLs** — download arbitrary files with progress and auto-rename on collision
+- **Directories** — connect multiple server folders, navigate, create folders, delete files
+- **Tor & proxies** — global default proxy in Settings (Tor `socks5://`, HTTP, SOCKS) plus per-download override; `cookies.txt` support for YouTube bot checks
+- **Security** — password login (PBKDF2-SHA256 hashed, 600k iterations), HMAC-signed sessions, brute-force lockout, path-traversal protection
+- **Yggdrasil-friendly** — bind the server to your Yggdrasil IPv6 address to keep it reachable from your overlay network only
+- **RU / EN interface** — language switcher, preference saved per browser
+- `YTDLP_NO_LAZY_EXTRACTORS=1` and yt-dlp EJS remote components enabled out of the box
 
-## Быстрый старт
+## Quick start
 
 ```bash
 git clone https://github.com/KeyspaceDecay/MediaVault.git
 cd MediaVault
-cp .env.example .env        # отредактируйте пароль
-./run.sh                    # создаст venv, поставит зависимости и запустит
+cp .env.example .env        # edit HOST/PORT (and see password notes below)
+./run.sh                    # creates a venv, installs deps, starts the server
 ```
 
-Сервер: `http://localhost:8666`
+Then open `http://localhost:8666` (or your custom `HOST:PORT`).
 
-Если `MEDIAVAULT_PASSWORD` не задан — при первом запуске пароль сгенерируется автоматически и будет выведен в консоль (и записан в `.env`).
+### Password
 
-### Зависимости системы
+On first launch MediaVault either takes `MEDIAVAULT_PASSWORD` from `.env` or generates a random one (printed to the console). In both cases it is immediately converted to a **PBKDF2-SHA256 hash** stored in `data/auth.json` and the plaintext line is removed from `.env`.
+
+- Change password anytime: **⚙️ Settings → Change password** (requires the current one)
+- Reset: delete `data/auth.json` and set `MEDIAVAULT_PASSWORD` in `.env` again
+
+### System dependencies
 
 - Python 3.10+
-- **ffmpeg** — миниатюры видео, слияние форматов, MP3
-  - Alpine: `apk add ffmpeg`
-  - Debian/Ubuntu: `apt install ffmpeg`
-- **deno** (рекомендуется) — JS-runtime для yt-dlp, нужен YouTube'ом для решения челленджей
-  - Alpine: `apk add deno` · Debian/Ubuntu: см. [deno.land](https://docs.deno.com/runtime/getting_started/installation/)
+- **ffmpeg** — video thumbnails, format merging, MP3 extraction
+  - Alpine: `apk add ffmpeg` · Debian/Ubuntu: `apt install ffmpeg`
+- **deno** (recommended) — JS runtime used by yt-dlp to solve YouTube challenges
+  - Alpine: `apk add deno` · otherwise see [deno.land](https://docs.deno.com/runtime/getting_started/installation/)
 
-## Tor (для заблокированных сайтов)
+## Tor (blocked sites)
 
-1. Установите и запустите Tor:
+1. Install and start Tor:
    ```bash
    # Alpine
    apk add tor && rc-service tor start
    # Debian/Ubuntu
    apt install tor && systemctl enable --now tor
    ```
-2. В MediaVault откройте **⚙️ Настройки** → «Прокси по умолчанию» → **Tor**.
-   Индикатор покажет статус демона (порт `9050`).
-3. При необходимости для конкретной загрузки прокси можно переопределить («Tor» / «Без прокси») в форме загрузки.
+2. In MediaVault open **⚙️ Settings → Default proxy → Tor**. The status line shows whether a Tor daemon is detected on port `9050`.
+3. Any single download can override this (**Tor / No proxy**) in the download form.
 
-Также поддерживаются HTTP(S) и SOCKS4/5 прокси, в т.ч. с авторизацией: `http://user:pass@host:port`, `socks5://host:port`.
+HTTP(S) and SOCKS4/5 proxies with auth are also supported: `http://user:pass@host:port`, `socks5://host:port`.
 
-### Если YouTube требует «подтвердить, что вы не робот»
+### If YouTube asks you to “confirm you're not a bot”
 
-Экспортируйте cookies в `cookies.txt` (расширение браузера «Get cookies.txt LOCALLY») и укажите путь к файлу в ⚙️ Настройках.
+Export your browser cookies to `cookies.txt` (e.g. the “Get cookies.txt LOCALLY” extension) and point to the file in ⚙️ Settings.
 
-## Конфигурация (`.env`)
+## Yggdrasil
 
-| Переменная | По умолчанию | Описание |
-|---|---|---|
-| `MEDIAVAULT_PASSWORD` | генерируется | Пароль входа |
-| `HOST` | `0.0.0.0` | Адрес сервера |
-| `PORT` | `8666` | Порт |
-| `SESSION_TTL` | `604800` | Время жизни сессии (сек) |
+To serve MediaVault exclusively over [Yggdrasil](https://yggdrasil-network.github.io/):
 
-Прокси и cookies настраиваются в веб-интерфейсе (⚙️) и хранятся в `data/settings.json`.
-
-## Структура
-
-```
-app/            FastAPI-бэкенд (auth, директории, yt-dlp, прокси, стриминг)
-static/         Веб-интерфейс (vanilla JS, без сборки)
-data/           Секрет, кэш миниатюр, настройки (не для git)
+```bash
+yggdrasilctl getSelf   # note your IPv6 address, e.g. 202:…:468f
 ```
 
-## API (кратко)
+Set it as the bind address in `.env`:
 
-Все `/api/*`, кроме `POST /api/auth/login` и `GET /api/auth/status`, требуют cookie-сессию.
+```
+HOST=202:2542:c440:ce0d:1ca2:998d:b1e0:468f
+```
 
-| Метод | Путь | Описание |
+Restart with `./run.sh`. The app is now reachable at `http://[202:…:468f]:8666` from anywhere in your Yggdrasil network — and *not* on LAN/localhost. Use `HOST=0.0.0.0` to listen on all interfaces instead.
+
+## Configuration (`.env`)
+
+| Variable | Default | Description |
 |---|---|---|
-| POST | `/api/auth/login` | Вход (`{"password": "..."}`) |
-| GET/POST/PATCH/DELETE | `/api/dirs` | Управление директориями |
-| GET | `/api/dirs/{id}/list` | Содержимое папки |
-| GET | `/api/dirs/{id}/file` | Файл (Range, `?dl=1`) |
-| GET | `/api/dirs/{id}/thumb` | Миниатюра |
-| POST | `/api/ytdlp/formats` | Информация и форматы видео |
-| POST | `/api/ytdlp/download` | Скачать видео |
-| POST | `/api/direct/download` | Скачать файл по ссылке |
-| GET/PUT | `/api/settings` | Прокси, cookies, статус Tor |
-| GET | `/api/jobs` | Очередь загрузок |
+| `HOST` | `0.0.0.0` | Bind address (Yggdrasil IPv6, LAN IP, etc.) |
+| `PORT` | `8666` | Port |
+| `MEDIAVAULT_PASSWORD` | generated | First-run password (then hashed in `data/auth.json`) |
+| `SESSION_TTL` | `604800` | Session lifetime, seconds |
 
-## Лицензия
+Proxy and cookies are configured in the web UI (⚙️) and stored in `data/settings.json`.
+
+## Structure
+
+```
+app/            FastAPI backend (auth, directories, yt-dlp, proxy, streaming)
+static/         Web UI (vanilla JS, no build step, RU/EN)
+data/           Secret key, password hash, settings, thumbnail cache (not for git)
+```
+
+## API (brief)
+
+All `/api/*` routes except `POST /api/auth/login`, `GET /api/auth/status` and `POST /api/logout` require a session cookie.
+
+| Method | Path | Description |
+|---|---|---|
+| POST | `/api/auth/login` | Sign in (`{"password": "..."}`) |
+| POST | `/api/auth/password` | Change password (`{"current": "...", "new": "..."}`) |
+| GET/POST/PATCH/DELETE | `/api/dirs` | Manage connected directories |
+| GET | `/api/dirs/{id}/list` | List folder contents |
+| GET | `/api/dirs/{id}/file` | Stream file (Range, `?dl=1` to force download) |
+| GET | `/api/dirs/{id}/thumb` | Thumbnail |
+| POST | `/api/ytdlp/formats` | Video info & formats |
+| POST | `/api/ytdlp/download` | Download video |
+| POST | `/api/direct/download` | Download file by URL |
+| GET/PUT | `/api/settings` | Proxy, cookies, Tor status |
+| GET | `/api/jobs` | Download queue |
+
+## License
 
 MIT

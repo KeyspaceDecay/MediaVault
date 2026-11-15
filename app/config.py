@@ -24,12 +24,24 @@ def _parse_env_file(path: Path) -> dict[str, str]:
     return values
 
 
-def _append_env(path: Path, key: str, value: str) -> None:
-    text = path.read_text(encoding="utf-8") if path.exists() else ""
-    if text and not text.endswith("\n"):
-        text += "\n"
-    text += f"{key}={value}\n"
-    path.write_text(text, encoding="utf-8")
+def scrub_env_password() -> None:
+    """Удаляет пароль из .env после миграции в хэш (data/auth.json)."""
+    if not ENV_PATH.exists():
+        return
+    lines = ENV_PATH.read_text(encoding="utf-8").splitlines()
+    out = []
+    replaced = False
+    for line in lines:
+        if line.strip().startswith("MEDIAVAULT_PASSWORD="):
+            if not replaced:
+                out.append("# Пароль хранится в data/auth.json (PBKDF2-хэш).")
+                out.append("# Сброс пароля: удалите data/auth.json и задайте MEDIAVAULT_PASSWORD=... здесь,")
+                out.append("# либо смените пароль в веб-интерфейсе (⚙️ Настройки).")
+                replaced = True
+        else:
+            out.append(line)
+    if replaced:
+        ENV_PATH.write_text("\n".join(out) + "\n", encoding="utf-8")
 
 
 _env = _parse_env_file(ENV_PATH)
@@ -40,13 +52,6 @@ os.environ.setdefault("YTDLP_NO_LAZY_EXTRACTORS", "1")
 HOST = _env.get("HOST", "0.0.0.0")
 PORT = int(_env.get("PORT", "8666"))
 PASSWORD = _env.get("MEDIAVAULT_PASSWORD", "")
-
-if not PASSWORD:
-    PASSWORD = secrets.token_urlsafe(12)
-    _append_env(ENV_PATH, "MEDIAVAULT_PASSWORD", PASSWORD)
-    print(f"\n[MediaVault] Сгенерирован пароль для входа: {PASSWORD}\n"
-          f"[MediaVault] Он сохранён в {ENV_PATH}\n")
-
 SESSION_TTL = int(_env.get("SESSION_TTL", str(7 * 24 * 3600)))
 
 
