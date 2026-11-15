@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Данные приложения (секреты, кэш миниатюр, конфиг директорий)
+data/
+.env
+
+# Медиафайлы, если храните их прямо в проекте
+media/
+downloads/
+
+# OS
+.DS_Store
+Thumbs.db

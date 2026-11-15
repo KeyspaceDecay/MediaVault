@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MediaVault</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎞️</text></svg>">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+  <!-- Экран входа -->
+  <div id="login-view" class="hidden">
+    <form id="login-form" class="login-card" autocomplete="off">
+      <div class="login-logo">🎞️</div>
+      <h1>MediaVault</h1>
+      <p class="login-sub">Личное медиахранилище</p>
+      <input type="password" id="login-password" placeholder="Пароль" autocomplete="current-password" autofocus>
+      <button type="submit" class="btn primary wide">Войти</button>
+      <div id="login-error" class="login-error"></div>
+    </form>
+  </div>
+
+  <!-- Основное приложение -->
+  <div id="app-view" class="hidden">
+    <header class="topbar">
+      <div class="brand">🎞️ MediaVault</div>
+      <nav class="tabs">
+        <button class="tab active" data-view="media">Медиа</button>
+        <button class="tab" data-view="downloads">Загрузки <span id="jobs-badge" class="badge hidden"></span></button>
+      </nav>
+      <div class="topbar-right">
+        <button id="settings-btn" class="icon-btn" title="Настройки">⚙️</button>
+        <button id="logout-btn" class="btn ghost small">Выйти</button>
+      </div>
+    </header>
+
+    <main>
+      <!-- Просмотр медиа -->
+      <section id="view-media" class="view">
+        <aside class="sidebar">
+          <div class="sidebar-head">
+            <span>Директории</span>
+            <button id="add-dir-btn" class="icon-btn" title="Подключить директорию">＋</button>
+          </div>
+          <div id="dirs-list"></div>
+        </aside>
+        <div class="browser">
+          <div class="browser-top">
+            <div id="breadcrumb" class="breadcrumb"></div>
+            <button id="mkdir-btn" class="btn ghost small" title="Новая папка">📁 +</button>
+          </div>
+          <div id="grid" class="grid"></div>
+          <div id="empty-state" class="empty-state hidden"></div>
+        </div>
+      </section>
+
+      <!-- Загрузки -->
+      <section id="view-downloads" class="view hidden">
+        <div class="dl-grid">
+          <div class="card">
+            <h3>⬇️ Видео через yt-dlp</h3>
+            <div class="field">
+              <label>Ссылка на видео (YouTube, TikTok, VK и др.)</label>
+              <input type="url" id="ytdlp-url" placeholder="https://youtube.com/watch?v=..." spellcheck="false">
+            </div>
+            <button id="fetch-formats-btn" class="btn ghost">Получить информацию</button>
+
+            <div id="format-info" class="format-info hidden">
+              <img id="fi-thumb" class="fi-thumb" alt="">
+              <div class="fi-meta">
+                <div id="fi-title" class="fi-title"></div>
+                <div id="fi-sub" class="fi-sub"></div>
+              </div>
+            </div>
+
+            <div id="quality-block" class="hidden">
+              <div class="quality-options">
+                <label class="radio"><input type="radio" name="quality" value="best" checked><span>Лучшее качество</span></label>
+                <label class="radio"><input type="radio" name="quality" value="audio"><span>Только аудио (MP3)</span></label>
+                <label class="radio"><input type="radio" name="quality" value="manual"><span>Выбрать вручную</span></label>
+              </div>
+              <div id="format-select-wrap" class="hidden">
+                <select id="format-select"></select>
+              </div>
+            <div class="field">
+              <label>Куда сохранить</label>
+              <select id="ytdlp-dir"></select>
+            </div>
+            <div class="field">
+              <label>Прокси для этой загрузки</label>
+              <select id="ytdlp-proxy">
+                <option value="">Как в настройках</option>
+                <option value="tor">Tor (127.0.0.1:9050)</option>
+                <option value="none">Без прокси</option>
+              </select>
+            </div>
+            <button id="ytdlp-start" class="btn primary wide">Скачать</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>🔗 Файл по прямой ссылке</h3>
+            <div class="field">
+              <label>URL файла</label>
+              <input type="url" id="direct-url" placeholder="https://example.com/file.zip" spellcheck="false">
+            </div>
+            <div class="field">
+              <label>Имя файла (необязательно)</label>
+              <input type="text" id="direct-filename" placeholder="Как сохранить">
+            </div>
+            <div class="field">
+              <label>Куда сохранить</label>
+              <select id="direct-dir"></select>
+            </div>
+            <div class="field">
+              <label>Прокси для этой загрузки</label>
+              <select id="direct-proxy">
+                <option value="">Как в настройках</option>
+                <option value="tor">Tor (127.0.0.1:9050)</option>
+                <option value="none">Без прокси</option>
+              </select>
+            </div>
+            <button id="direct-start" class="btn primary wide">Скачать</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Очередь загрузок</h3>
+          <div id="jobs-list" class="jobs-list"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Просмотрщик файла -->
+  <div id="viewer" class="modal hidden">
+    <div class="modal-backdrop" data-close="viewer"></div>
+    <div class="viewer-body">
+      <div class="viewer-head">
+        <div id="viewer-title" class="viewer-title"></div>
+        <div class="viewer-actions">
+          <a id="viewer-download" class="btn ghost small" href="#">⬇ Скачать</a>
+          <button id="viewer-delete" class="btn danger small">🗑 Удалить</button>
+          <button class="icon-btn" data-close="viewer" title="Закрыть">✕</button>
+        </div>
+      </div>
+      <div id="viewer-content" class="viewer-content"></div>
+      <div id="viewer-sub" class="viewer-sub"></div>
+    </div>
+  </div>
+
+  <!-- Модалка директории -->
+  <div id="dir-modal" class="modal hidden">
+    <div class="modal-backdrop" data-close="dir-modal"></div>
+    <div class="modal-card">
+      <h3 id="dir-modal-title">Подключить директорию</h3>
+      <div class="field">
+        <label>Название</label>
+        <input type="text" id="dir-name" placeholder="Например: Фильмы">
+      </div>
+      <div class="field">
+        <label>Абсолютный путь на сервере</label>
+        <input type="text" id="dir-path" placeholder="/mnt/movies" spellcheck="false">
+      </div>
+      <div id="dir-modal-error" class="login-error"></div>
+      <div class="modal-actions">
+        <button class="btn ghost" data-close="dir-modal">Отмена</button>
+        <button id="dir-save" class="btn primary">Сохранить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модалка настроек -->
+  <div id="settings-modal" class="modal hidden">
+    <div class="modal-backdrop" data-close="settings-modal"></div>
+    <div class="modal-card">
+      <h3>⚙️ Настройки</h3>
+      <div class="field">
+        <label>Прокси по умолчанию (Tor, HTTP, SOCKS)</label>
+        <select id="settings-proxy-mode">
+          <option value="">Без прокси (напрямую)</option>
+          <option value="tor">Tor — socks5://127.0.0.1:9050</option>
+          <option value="custom">Свой прокси…</option>
+        </select>
+      </div>
+      <div class="field hidden" id="settings-proxy-custom-wrap">
+        <label>Адрес прокси</label>
+        <input type="text" id="settings-proxy-custom" placeholder="socks5://127.0.0.1:1080 или http://user:pass@host:port" spellcheck="false">
+      </div>
+      <div id="tor-status" class="status-line"></div>
+      <div class="field">
+        <label>Cookies.txt для yt-dlp (необязательно)</label>
+        <input type="text" id="settings-cookies" placeholder="/path/to/cookies.txt — если YouTube просит подтвердить, что вы не робот" spellcheck="false">
+      </div>
+      <div class="hint">Если сайты заблокированы (YouTube и т.п.) — установите Tor: <code>apt install tor</code> / <code>apk add tor</code> и выберите его выше.</div>
+      <div id="settings-error" class="login-error"></div>
+      <div class="modal-actions">
+        <button class="btn ghost" data-close="settings-modal">Отмена</button>
+        <button id="settings-save" class="btn primary">Сохранить</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toasts"></div>
+  <script src="/static/app.js"></script>
+</body>
+</html>
