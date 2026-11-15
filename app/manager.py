@@ -79,11 +79,27 @@ def add_dir(body: dict):
     raw_path = (body.get("path") or "").strip()
     if not raw_path:
         raise HTTPException(400, "Путь обязателен")
-    path = Path(raw_path).expanduser().resolve()
-    if not path.is_absolute():
-        raise HTTPException(400, "Путь должен быть абсолютным")
+    expanded = Path(raw_path).expanduser()
+    if not expanded.is_absolute():
+        raise HTTPException(
+            400,
+            f"Путь должен быть абсолютным — начинаться с «/» (это путь на сервере, "
+            f"а не на вашем компьютере). Например: /data/SomeFiles/DWN. Вы ввели: {raw_path}",
+        )
+    path = expanded.resolve()
+
     if not path.exists():
-        raise HTTPException(400, "Путь не существует")
+        if body.get("create_if_missing"):
+            try:
+                path.mkdir(parents=True, exist_ok=True)
+            except OSError as exc:
+                raise HTTPException(400, f"Не удалось создать {path}: {exc.strerror or exc}")
+        else:
+            raise HTTPException(
+                400,
+                f"Пути нет на сервере: {path}. Проверьте точное имя или включите "
+                f"«Создать папку, если не существует».",
+            )
     if not path.is_dir():
         raise HTTPException(400, "Это не директория")
     if not name:
@@ -109,9 +125,15 @@ def update_dir(dir_id: str, body: dict):
     name = (body.get("name") or "").strip()
     raw_path = (body.get("path") or "").strip()
     if raw_path:
-        path = Path(raw_path).expanduser().resolve()
+        expanded = Path(raw_path).expanduser()
+        if not expanded.is_absolute():
+            raise HTTPException(
+                400,
+                f"Путь должен быть абсолютным — начинаться с «/». Вы ввели: {raw_path}",
+            )
+        path = expanded.resolve()
         if not path.is_dir():
-            raise HTTPException(400, "Новый путь не существует или не директория")
+            raise HTTPException(400, f"Пути нет на сервере: {path}")
         dup = any(d["id"] != dir_id and Path(d["path"]).resolve() == path for d in dirs)
         if dup:
             raise HTTPException(400, "Эта директория уже добавлена")

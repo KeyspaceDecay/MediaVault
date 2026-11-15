@@ -1,4 +1,8 @@
+import os
 import re
+import signal
+import subprocess
+import sys
 import threading
 import time
 from pathlib import Path
@@ -165,64 +169,104 @@ def proxy_image(url: str):
     )
 
 
+PROGRESS_RE = re.compile(r"\[download\]\s+(\d+(?:\.\d+)?)%\s+of\s+(~?)([\d.]+)(KiB|MiB|GiB|TiB|B)")
+SPEED_RE = re.compile(r"\bat\s+([\d.]+\S*/s)\b")
+ETA_RE = re.compile(r"\bETA\s+(\S+)")
+SIZE_MULT = {"B": 1, "KiB": 1024, "MiB": 1024**2, "GiB": 1024**3, "TiB": 1024**4}
+
+
 def _run_ytdlp(job_id: str, url: str, fmt: str, audio: bool, out_dir: Path, proxy: str | None) -> None:
-    job = jobs.get(job_id)
-    if not job:
+    cmd = [
+        sys.executable, "-m", "yt_dlp",
+        "--newline", "--no-warnings", "--no-playlist", "--windows-filenames",
+        "--remote-components", "ejs:github",
+        "--no-simulate", "--progress",
+        "-o", "%(title).180B [%(id)s].%(ext)s",
+        "--print", "after_move:filepath",
+    ]
+    if proxy:
+        cmd += ["--proxy", proxy]
+    cookiefile = app_settings.resolve_cookiefile()
+    if cookiefile:
+        cmd += ["--cookies", cookiefile]
+    if audio:
+        cmd += ["-f", "bestaudio/best", "-x", "--audio-format", "mp3", "--audio-quality", "192"]
+    else:
+        cmd += ["-f", fmt]
+    cmd += ["--", url]
+
+    env = dict(os.environ)
+    env["YTDLP_NO_LAZY_EXTRACTORS"] = "1"
+    env["PYTHONUNBUFFERED"] = "1"
+
+    jobs.update(job_id, status="running", progress=0)
+    try:
+        proc = subprocess.Popen(
+            cmd,
+            cwd=str(out_dir),
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            start_new_session=True,
+        )
+    except OSError as exc:
+        jobs.update(job_id, status="error", error=f"Не удалось запустить yt-dlp: {exc}", finished=time.time())
         return
 
-    def hook(d):
-        if jobs.is_canceled(job_id):
-            raise yt_dlp.utils.DownloadCancelledError()
-        if d["status"] == "downloading":
-            downloaded = d.get("downloaded_bytes") or 0
-            total = d.get("total_bytes") or d.get("total_bytes_estimate")
-            jobs.update(
-                job_id,
-                status="running",
-                downloaded=downloaded,
-                total=total,
-                speed=d.get("_speed_str"),
-                eta=d.get("_eta_str"),
-                progress=round(downloaded / total * 100, 1) if total else None,
-            )
+    def watchdog() -> None:
+        while proc.poll() is None:
+            if jobs.is_canceled(job_id):
+                try:
+                    os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+                except OSError:
+                    proc.terminate()
+                return
+            time.sleep(0.4)
 
-    opts = {
-        **_ydl_opts(proxy),
-        "outtmpl": str(out_dir / "%(title).180B [%(id)s].%(ext)s"),
-        "progress_hooks": [hook],
-        "windowsfilenames": True,
-        "overwrites": False,
-        "restrictfilenames": False,
-    }
-    if audio:
-        opts["format"] = "bestaudio/best"
-        opts["postprocessors"] = [
-            {"key": "FFmpegExtractAudio", "preferredcodec": "mp3", "preferredquality": "192"}
-        ]
-    else:
-        opts["format"] = fmt
+    threading.Thread(target=watchdog, daemon=True).start()
 
+    filename = None
+    error_line = None
+    out_prefix = str(out_dir)
     try:
-        jobs.update(job_id, status="running", progress=0)
-        with yt_dlp.YoutubeDL(opts) as ydl:
-            info = ydl.extract_info(url, download=True)
-        if jobs.is_canceled(job_id):
-            jobs.update(job_id, status="canceled", finished=time.time())
-            return
-        filename = None
-        if info:
-            if info.get("requested_downloads"):
-                filename = info["requested_downloads"][0].get("filepath")
-            elif info.get("_filename"):
-                filename = info["_filename"]
-        jobs.update(job_id, status="done", progress=100, filename=filename, finished=time.time())
-    except yt_dlp.utils.DownloadCancelledError:
+        for raw in proc.stdout:
+            line = raw.strip()
+            if not line:
+                continue
+            if line.startswith("ERROR"):
+                error_line = line.removeprefix("ERROR:").strip()
+                continue
+            if line.startswith("/") and (line.startswith(out_prefix) or os.path.dirname(line) == str(out_dir)):
+                filename = line
+                continue
+            m = PROGRESS_RE.match(line)
+            if not m:
+                continue
+            fields = {"status": "running", "progress": float(m.group(1))}
+            total = float(m.group(3)) * SIZE_MULT.get(m.group(4), 1)
+            fields["total"] = int(total)
+            fields["downloaded"] = int(total * float(m.group(1)) / 100)
+            sp = SPEED_RE.search(line)
+            if sp:
+                fields["speed"] = sp.group(1)
+            eta = ETA_RE.search(line)
+            if eta and eta.group(1) != "Unknown":
+                fields["eta"] = eta.group(1)
+            jobs.update(job_id, **fields)
+    finally:
+        proc.stdout.close()
+
+    rc = proc.wait()
+
+    if jobs.is_canceled(job_id):
         jobs.update(job_id, status="canceled", finished=time.time())
-    except Exception as exc:  # noqa: BLE001
-        if jobs.is_canceled(job_id):
-            jobs.update(job_id, status="canceled", finished=time.time())
-        else:
-            jobs.update(job_id, status="error", error=_friendly_error(exc), finished=time.time())
+        return
+    if rc == 0:
+        jobs.update(job_id, status="done", progress=100, filename=filename, finished=time.time())
+    else:
+        msg = _friendly_error(Exception(error_line or f"yt-dlp завершился с кодом {rc}"))
+        jobs.update(job_id, status="error", error=msg, finished=time.time())
 
 
 @router.post("/ytdlp/download")
@@ -289,7 +333,7 @@ def _run_direct(job_id: str, url: str, out_dir: Path, override_name: str | None,
 
     try:
         jobs.update(job_id, status="running", progress=0, downloaded=0)
-        with httpx.Client(follow_redirects=True, timeout=httpx.Timeout(30, read=60), proxy=proxy) as client:
+        with httpx.Client(follow_redirects=True, timeout=httpx.Timeout(30, read=20), proxy=proxy) as client:
             with client.stream("GET", url) as resp:
                 resp.raise_for_status()
                 total_header = resp.headers.get("content-length")

@@ -21,7 +21,7 @@
       </div>
       <h1>MediaVault</h1>
       <p class="login-sub" data-i18n="login_sub">Личное медиахранилище</p>
-      <input type="password" id="login-password" data-i18n-ph="login_password_ph" placeholder="Пароль" autocomplete="current-password" autofocus>
+      <input type="password" id="login-password" data-i18n-ph="login_password_ph" placeholder="Пароль" autocomplete="off" name="mv-login-off" autofocus>
       <button type="submit" class="btn primary wide" data-i18n="login_btn">Войти</button>
       <div id="login-error" class="login-error"></div>
     </form>
@@ -58,10 +58,13 @@
         <div class="browser">
           <div class="browser-top">
             <div id="breadcrumb" class="breadcrumb"></div>
-            <button id="mkdir-btn" class="btn ghost small" data-i18n="mkdir_btn" title="Новая папка">📁 +</button>
+            <div style="display:flex;gap:6px;align-items:center">
+              <button id="pin-folder-btn" class="icon-btn hidden" data-i18n-title="pin_folder" title="Добавить эту папку в список директорий">📌</button>
+              <button id="mkdir-btn" class="btn ghost small" data-i18n="mkdir_btn" title="Новая папка">📁 +</button>
+            </div>
           </div>
           <div class="browser-toolbar">
-            <input type="search" id="media-search" data-i18n-ph="search_ph" placeholder="Поиск…">
+            <input type="search" id="media-search" autocomplete="off" data-i18n-ph="search_ph" placeholder="Поиск…">
             <select id="media-sort" data-i18n-title="sort_title" title="Сортировка">
               <option value="name_asc" data-i18n="sort_name_asc">Имя А→Я</option>
               <option value="name_desc" data-i18n="sort_name_desc">Имя Я→А</option>
@@ -88,7 +91,7 @@
             <h3 data-i18n="yt_card_title">⬇️ Видео через yt-dlp</h3>
             <div class="field">
               <label data-i18n="yt_url_label">Ссылка на видео (YouTube, TikTok, VK и др.)</label>
-              <input type="url" id="ytdlp-url" placeholder="https://youtube.com/watch?v=..." spellcheck="false">
+              <input type="url" id="ytdlp-url" autocomplete="off" placeholder="https://youtube.com/watch?v=..." spellcheck="false">
             </div>
             <button id="fetch-formats-btn" class="btn ghost" data-i18n="fetch_info">Получить информацию</button>
 
@@ -129,11 +132,11 @@
             <h3 data-i18n="direct_card_title">🔗 Файл по прямой ссылке</h3>
             <div class="field">
               <label data-i18n="direct_url_label">URL файла</label>
-              <input type="url" id="direct-url" placeholder="https://example.com/file.zip" spellcheck="false">
+              <input type="url" id="direct-url" autocomplete="off" placeholder="https://example.com/file.zip" spellcheck="false">
             </div>
             <div class="field">
               <label data-i18n="direct_filename_label">Имя файла (необязательно)</label>
-              <input type="text" id="direct-filename" data-i18n-ph="direct_filename_ph" placeholder="Как сохранить">
+              <input type="text" id="direct-filename" autocomplete="off" data-i18n-ph="direct_filename_ph" placeholder="Как сохранить">
             </div>
             <div class="field">
               <label data-i18n="save_to">Куда сохранить</label>
@@ -188,12 +191,17 @@
       <h3 id="dir-modal-title"></h3>
       <div class="field">
         <label data-i18n="dir_name_label">Название</label>
-        <input type="text" id="dir-name" placeholder="Movies" spellcheck="false">
+        <input type="text" id="dir-name" autocomplete="off" placeholder="Movies" spellcheck="false">
       </div>
       <div class="field">
         <label data-i18n="dir_path_label">Абсолютный путь на сервере</label>
-        <input type="text" id="dir-path" placeholder="/mnt/movies" spellcheck="false">
+        <input type="text" id="dir-path" autocomplete="off" placeholder="/mnt/movies" spellcheck="false">
+        <div class="hint" data-i18n-html="dir_path_hint"></div>
       </div>
+      <label class="radio">
+        <input type="checkbox" id="dir-create-if-missing">
+        <span data-i18n="create_if_missing">Создать папку, если не существует</span>
+      </label>
       <div id="dir-modal-error" class="login-error"></div>
       <div class="modal-actions">
         <button class="btn ghost" data-close="dir-modal" data-i18n="cancel">Отмена</button>
@@ -217,12 +225,12 @@
       </div>
       <div class="field hidden" id="settings-proxy-custom-wrap">
         <label data-i18n="proxy_addr_label">Адрес прокси</label>
-        <input type="text" id="settings-proxy-custom" placeholder="socks5://127.0.0.1:1080 / http://user:pass@host:port" spellcheck="false">
+        <input type="text" id="settings-proxy-custom" autocomplete="off" placeholder="socks5://127.0.0.1:1080 / http://user:pass@host:port" spellcheck="false">
       </div>
       <div id="tor-status" class="status-line"></div>
       <div class="field">
         <label data-i18n="cookies_label">Cookies.txt для yt-dlp (необязательно)</label>
-        <input type="text" id="settings-cookies" placeholder="/path/to/cookies.txt" spellcheck="false">
+        <input type="text" id="settings-cookies" autocomplete="off" placeholder="/path/to/cookies.txt" spellcheck="false">
       </div>
       <div class="hint" data-i18n-html="proxy_hint"></div>
 

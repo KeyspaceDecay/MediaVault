@@ -36,6 +36,9 @@ const I18N = {
     dir_modal_edit: "Изменить директорию",
     dir_name_label: "Название",
     dir_path_label: "Абсолютный путь на сервере",
+    dir_path_hint: 'Путь к папке на сервере, где запущен MediaVault, начиная с «/». Пример: <code>/data/SomeFiles/DWN</code>',
+    create_if_missing: "Создать папку, если не существует",
+    pin_folder: "Добавить эту папку в список директорий",
     cancel: "Отмена",
     save: "Сохранить",
     saved: "Сохранено",
@@ -144,6 +147,9 @@ const I18N = {
     dir_modal_edit: "Edit directory",
     dir_name_label: "Name",
     dir_path_label: "Absolute path on the server",
+    dir_path_hint: 'Path to a folder on the server running MediaVault, starting with “/”. Example: <code>/data/SomeFiles/DWN</code>',
+    create_if_missing: "Create the folder if it doesn't exist",
+    pin_folder: "Pin this folder to the sidebar",
     cancel: "Cancel",
     save: "Save",
     saved: "Saved",
@@ -464,12 +470,18 @@ function openDirModal(dirId) {
   $("#dir-modal-title").textContent = t(d ? "dir_modal_edit" : "dir_modal_add");
   $("#dir-name").value = d ? d.name : "";
   $("#dir-path").value = d ? d.path : "";
+  $("#dir-create-if-missing").checked = false;
+  $("#dir-create-if-missing").closest(".radio").style.display = d ? "none" : "";
   $("#dir-modal-error").textContent = "";
   $("#dir-modal").classList.remove("hidden");
 }
 
 $("#dir-save").addEventListener("click", async () => {
-  const body = { name: $("#dir-name").value.trim(), path: $("#dir-path").value.trim() };
+  const body = {
+    name: $("#dir-name").value.trim(),
+    path: $("#dir-path").value.trim(),
+    create_if_missing: $("#dir-create-if-missing").checked,
+  };
   try {
     if (editingDirId) {
       await api(`/api/dirs/${editingDirId}`, { method: "PATCH", body });
@@ -585,7 +597,20 @@ function renderBreadcrumb() {
       $("#media-search").value = "";
       browse();
     }));
+  $("#pin-folder-btn").classList.toggle("hidden", !state.path);
 }
+
+$("#pin-folder-btn").addEventListener("click", async () => {
+  const root = state.dirs.find((x) => x.id === state.dirId);
+  if (!root || !state.path) return;
+  const abs = root.path.replace(/\/+$/, "") + "/" + state.path;
+  const name = state.path.split("/").filter(Boolean).pop();
+  try {
+    await api("/api/dirs", { method: "POST", body: { name, path: abs } });
+    await loadDirs();
+    toast(t("dir_connected"), "success");
+  } catch (err) { toast(err.message, "error"); }
+});
 
 function fileRel(name) {
   return state.path ? `${state.path}/${name}` : name;
