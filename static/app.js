@@ -849,7 +849,11 @@ async function fetchFormats() {
   if (!url) return toast(t("enter_url"), "error");
   const btn = $("#fetch-formats-btn");
   btn.disabled = true;
-  btn.textContent = t("fetching");
+  const started = Date.now();
+  const timer = setInterval(() => {
+    btn.textContent = `${t("fetching")} ${Math.round((Date.now() - started) / 1000)}…`;
+  }, 500);
+  btn.textContent = `${t("fetching")} 0…`;
   try {
     const info = await api("/api/ytdlp/formats", {
       method: "POST",
@@ -862,6 +866,7 @@ async function fetchFormats() {
   } catch (err) {
     toast(err.message, "error");
   } finally {
+    clearInterval(timer);
     btn.disabled = false;
     btn.textContent = t("fetch_info");
   }
@@ -870,7 +875,9 @@ async function fetchFormats() {
 function renderFormatInfo() {
   const info = state.formatInfo;
   if (!info) return;
-  $("#fi-thumb").src = info.thumbnail || "";
+  $("#fi-thumb").src = info.thumbnail
+    ? "/api/img?url=" + encodeURIComponent(info.thumbnail)
+    : "";
   $("#fi-thumb").style.display = info.thumbnail ? "" : "none";
   $("#fi-title").textContent = info.title || "";
   $("#fi-sub").textContent = [

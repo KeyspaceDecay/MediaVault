@@ -36,6 +36,9 @@ def _ydl_opts(proxy: str | None) -> dict:
     return opts
 
 
+_formats_cache: dict[str, dict] = {}
+
+
 def _friendly_error(exc: Exception) -> str:
     msg = str(exc) or exc.__class__.__name__
     if "Unsupported URL" in msg:
@@ -70,6 +73,11 @@ def _check_url(url: str) -> str:
 def ytdlp_formats(body: dict):
     url = _check_url(body.get("url", ""))
     proxy = app_settings.resolve_proxy(body.get("proxy"))
+
+    cached = _formats_cache.get(url)
+    if cached and time.time() - cached["ts"] < 600:
+        return cached["data"]
+
     try:
         with yt_dlp.YoutubeDL({**_ydl_opts(proxy), "skip_download": True}) as ydl:
             info = ydl.extract_info(url, download=False)
@@ -113,7 +121,7 @@ def ytdlp_formats(body: dict):
             if t.get("id") in ("hq720", "maxresdefault", "sddefault"):
                 break
 
-    return {
+    data = {
         "title": info.get("title"),
         "uploader": info.get("uploader") or info.get("channel"),
         "duration": info.get("duration"),
@@ -121,6 +129,40 @@ def ytdlp_formats(body: dict):
         "webpage_url": info.get("webpage_url") or url,
         "formats": formats,
     }
+    if len(_formats_cache) > 50:
+        oldest = sorted(_formats_cache.items(), key=lambda kv: kv[1]["ts"])
+        for k, _ in oldest[:25]:
+            _formats_cache.pop(k, None)
+    _formats_cache[url] = {"ts": time.time(), "data": data}
+    return data
+
+
+IMG_MAX_BYTES = 10 * 1024 * 1024
+
+
+@router.get("/img")
+def proxy_image(url: str):
+    if not url.startswith("https://"):
+        raise HTTPException(400, "Только https://")
+    proxy = app_settings.load()["proxy"] or None
+    try:
+        with httpx.Client(follow_redirects=True, timeout=httpx.Timeout(20), proxy=proxy) as client:
+            resp = client.get(url)
+            resp.raise_for_status()
+    except httpx.HTTPError as exc:
+        raise HTTPException(502, f"Не удалось загрузить изображение: {type(exc).__name__}")
+    content_type = resp.headers.get("content-type", "").split(";")[0].strip()
+    if not content_type.startswith("image/"):
+        raise HTTPException(400, "Это не изображение")
+    if len(resp.content) > IMG_MAX_BYTES:
+        raise HTTPException(400, "Изображение слишком большое")
+    from fastapi.responses import Response
+
+    return Response(
+        content=resp.content,
+        media_type=content_type,
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
 
 
 def _run_ytdlp(job_id: str, url: str, fmt: str, audio: bool, out_dir: Path, proxy: str | None) -> None:

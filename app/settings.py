@@ -21,13 +21,17 @@ router = APIRouter(prefix="/api/settings", tags=["settings"], dependencies=[Depe
 
 def load() -> dict:
     settings = dict(DEFAULTS)
-    if SETTINGS_FILE.exists():
+    existed = SETTINGS_FILE.exists()
+    if existed:
         try:
             data = json.loads(SETTINGS_FILE.read_text(encoding="utf-8"))
             if isinstance(data, dict):
                 settings.update({k: data.get(k, v) for k, v in DEFAULTS.items()})
         except (json.JSONDecodeError, OSError):
             pass
+    if not existed and tor_available():
+        settings["proxy"] = TOR_SOCKS
+        save(settings)
     return settings
 
 
