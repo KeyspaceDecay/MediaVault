@@ -9,15 +9,16 @@
 </head>
 <body>
 
-  <div id="lang-switch" class="lang-switch">
-    <button data-lang="ru">RU</button>
-    <button data-lang="en">EN</button>
-  </div>
-
   <!-- Экран входа -->
   <div id="login-view" class="hidden">
     <form id="login-form" class="login-card" autocomplete="off">
-      <div class="login-logo">🎞️</div>
+      <div class="login-top">
+        <div class="login-logo">🎞️</div>
+        <div class="lang-switch">
+          <button type="button" data-lang="ru">RU</button>
+          <button type="button" data-lang="en">EN</button>
+        </div>
+      </div>
       <h1>MediaVault</h1>
       <p class="login-sub" data-i18n="login_sub">Личное медиахранилище</p>
       <input type="password" id="login-password" data-i18n-ph="login_password_ph" placeholder="Пароль" autocomplete="current-password" autofocus>
@@ -35,7 +36,11 @@
         <button class="tab" data-view="downloads"><span data-i18n="tab_downloads">Загрузки</span> <span id="jobs-badge" class="badge hidden"></span></button>
       </nav>
       <div class="topbar-right">
-        <button id="settings-btn" class="icon-btn" title="Settings">⚙️</button>
+        <div class="lang-switch">
+          <button type="button" data-lang="ru">RU</button>
+          <button type="button" data-lang="en">EN</button>
+        </div>
+        <button id="settings-btn" class="icon-btn">⚙️</button>
         <button id="logout-btn" class="btn ghost small" data-i18n="logout">Выйти</button>
       </div>
     </header>
@@ -55,6 +60,22 @@
             <div id="breadcrumb" class="breadcrumb"></div>
             <button id="mkdir-btn" class="btn ghost small" data-i18n="mkdir_btn" title="Новая папка">📁 +</button>
           </div>
+          <div class="browser-toolbar">
+            <input type="search" id="media-search" data-i18n-ph="search_ph" placeholder="Поиск…">
+            <select id="media-sort" data-i18n-title="sort_title" title="Сортировка">
+              <option value="name_asc" data-i18n="sort_name_asc">Имя А→Я</option>
+              <option value="name_desc" data-i18n="sort_name_desc">Имя Я→А</option>
+              <option value="date_desc" data-i18n="sort_date_desc">Сначала новые</option>
+              <option value="date_asc" data-i18n="sort_date_asc">Сначала старые</option>
+              <option value="size_desc" data-i18n="sort_size_desc">Больше размер</option>
+              <option value="size_asc" data-i18n="sort_size_asc">Меньше размер</option>
+            </select>
+            <div class="layout-toggle">
+              <button type="button" id="layout-grid" data-layout-title="layout_grid" title="Сетка">▦</button>
+              <button type="button" id="layout-list" data-layout-title="layout_list" title="Список">☰</button>
+            </div>
+          </div>
+          <div id="browser-status" class="browser-status"></div>
           <div id="grid" class="grid"></div>
           <div id="empty-state" class="empty-state hidden"></div>
         </div>
@@ -143,6 +164,11 @@
     <div class="modal-backdrop" data-close="viewer"></div>
     <div class="viewer-body">
       <div class="viewer-head">
+        <div class="viewer-nav">
+          <button id="viewer-prev" class="icon-btn nav-arrow" data-i18n-title="nav_prev" title="Предыдущий">‹</button>
+          <span id="viewer-counter" class="viewer-counter"></span>
+          <button id="viewer-next" class="icon-btn nav-arrow" data-i18n-title="nav_next" title="Следующий">›</button>
+        </div>
         <div id="viewer-title" class="viewer-title"></div>
         <div class="viewer-actions">
           <a id="viewer-download" class="btn ghost small" href="#"><span data-i18n="download_btn">⬇ Скачать</span></a>

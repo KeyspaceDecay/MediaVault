@@ -42,6 +42,23 @@ const I18N = {
     dir_connected: "Директория подключена",
     dir_disconnected: "Директория отключена",
     dir_disconnect_confirm: (n) => `Отключить директорию «${n}»? Файлы удалены не будут.`,
+    search_ph: "Поиск в папке…",
+    sort_title: "Сортировка",
+    sort_name_asc: "Имя А→Я",
+    sort_name_desc: "Имя Я→А",
+    sort_date_desc: "Сначала новые",
+    sort_date_asc: "Сначала старые",
+    sort_size_desc: "Больше размер",
+    sort_size_asc: "Меньше размер",
+    layout_grid: "Сетка",
+    layout_list: "Список",
+    load_more: "Показать ещё",
+    found_label: "Найдено",
+    shown_of: (a, b) => `показано ${a} из ${b}`,
+    nothing_found: "Ничего не найдено",
+    nothing_found_hint: "Измените запрос или очистите поиск",
+    nav_prev: "Предыдущий (←)",
+    nav_next: "Следующий (→)",
     yt_card_title: "⬇️ Видео через yt-dlp",
     yt_url_label: "Ссылка на видео (YouTube, TikTok, VK и др.)",
     fetch_info: "Получить информацию",
@@ -133,6 +150,23 @@ const I18N = {
     dir_connected: "Directory connected",
     dir_disconnected: "Directory disconnected",
     dir_disconnect_confirm: (n) => `Disconnect “${n}”? Files will not be deleted.`,
+    search_ph: "Search in folder…",
+    sort_title: "Sort",
+    sort_name_asc: "Name A→Z",
+    sort_name_desc: "Name Z→A",
+    sort_date_desc: "Newest first",
+    sort_date_asc: "Oldest first",
+    sort_size_desc: "Largest first",
+    sort_size_asc: "Smallest first",
+    layout_grid: "Grid",
+    layout_list: "List",
+    load_more: "Load more",
+    found_label: "Found",
+    shown_of: (a, b) => `showing ${a} of ${b}`,
+    nothing_found: "Nothing found",
+    nothing_found_hint: "Try a different query or clear the search",
+    nav_prev: "Previous (←)",
+    nav_next: "Next (→)",
     yt_card_title: "⬇️ Video via yt-dlp",
     yt_url_label: "Video link (YouTube, TikTok, VK, etc.)",
     fetch_info: "Fetch info",
@@ -228,6 +262,7 @@ function fmtDate(ts) {
 }
 
 const TYPE_ICONS = { dir: "📁", image: "🖼️", video: "🎬", audio: "🎵", file: "📄" };
+const PAGE_SIZE = 120;
 
 /* ================= API ================= */
 
@@ -269,6 +304,13 @@ const state = {
   formatInfo: null,
   formats: [],
   jobsTimer: null,
+  layout: localStorage.getItem("mv_layout") || "grid",
+  sort: localStorage.getItem("mv_sort") || "name_asc",
+  search: "",
+  page: 1,
+  lastData: { dirs: [], files: [] },
+  viewFiles: [],
+  viewerIndex: -1,
 };
 
 /* ================= Язык ================= */
@@ -279,20 +321,21 @@ function applyLang() {
   $$("[data-i18n]").forEach((el) => { el.textContent = t(el.dataset.i18n); });
   $$("[data-i18n-ph]").forEach((el) => { el.placeholder = t(el.dataset.i18nPh); });
   $$("[data-i18n-title]").forEach((el) => { el.title = t(el.dataset.i18nTitle); });
+  $$("[data-layout-title]").forEach((el) => { el.title = t(el.dataset.layoutTitle); });
   $$("[data-i18n-html]").forEach((el) => { el.innerHTML = t(el.dataset.i18nHtml); });
-  $$("#lang-switch button").forEach((b) => b.classList.toggle("active", b.dataset.lang === lang));
+  $$(".lang-switch button").forEach((b) => b.classList.toggle("active", b.dataset.lang === lang));
   renderDirs();
   renderDirSelects();
+  renderToolbarState();
   if (state.formatInfo) renderFormatInfo();
   if (state.view === "media") {
-    if (state.dirId) browse();
-    else renderGrid({ dirs: [], files: [] });
+    renderGrid(state.lastData);
   } else {
     renderJobs();
   }
 }
 
-$$("#lang-switch button").forEach((btn) =>
+$$(".lang-switch button").forEach((btn) =>
   btn.addEventListener("click", () => { if (lang !== btn.dataset.lang) { lang = btn.dataset.lang; applyLang(); } }));
 
 /* ================= Логин ================= */
@@ -402,6 +445,9 @@ function renderDirSelects() {
 function openDir(dirId) {
   state.dirId = dirId;
   state.path = "";
+  state.search = "";
+  state.page = 1;
+  $("#media-search").value = "";
   renderDirs();
   renderDirSelects();
   browse();
@@ -441,16 +487,83 @@ $("#dir-save").addEventListener("click", async () => {
   }
 });
 
-/* ================= Просмотр медиа ================= */
+/* ================= Просмотр медиа: браузер ================= */
+
+function renderToolbarState() {
+  $("#media-sort").value = state.sort;
+  $("#layout-grid").classList.toggle("active", state.layout === "grid");
+  $("#layout-list").classList.toggle("active", state.layout === "list");
+}
+
+$("#media-search").addEventListener("input", (e) => {
+  state.search = e.target.value.trim().toLowerCase();
+  state.page = 1;
+  renderGrid(state.lastData);
+});
+
+$("#media-sort").addEventListener("change", (e) => {
+  state.sort = e.target.value;
+  localStorage.setItem("mv_sort", state.sort);
+  renderGrid(state.lastData);
+});
+
+$("#layout-grid").addEventListener("click", () => setLayout("grid"));
+$("#layout-list").addEventListener("click", () => setLayout("list"));
+
+function setLayout(layout) {
+  state.layout = layout;
+  localStorage.setItem("mv_layout", layout);
+  renderToolbarState();
+  renderGrid(state.lastData);
+}
+
+$("#grid").addEventListener("scroll", () => {
+  const grid = $("#grid");
+  if (grid.scrollTop + grid.clientHeight > grid.scrollHeight - 500) {
+    const entries = visibleEntries();
+    if (entries.length > state.page * PAGE_SIZE) {
+      state.page += 1;
+      renderGrid(state.lastData);
+    }
+  }
+});
 
 async function browse() {
   if (!state.dirId) { renderGrid({ dirs: [], files: [] }); return; }
   try {
     const data = await api(`/api/dirs/${state.dirId}/list?path=${encodeURIComponent(state.path)}`);
+    state.lastData = data;
+    state.page = 1;
     renderGrid(data);
   } catch (err) {
     toast(err.message, "error");
   }
+}
+
+function cmpEntries(a, b) {
+  const opts = { numeric: true, sensitivity: "base" };
+  switch (state.sort) {
+    case "name_desc": return b.name.localeCompare(a.name, undefined, opts);
+    case "date_desc": return (b.mtime || 0) - (a.mtime || 0) || a.name.localeCompare(b.name, undefined, opts);
+    case "date_asc": return (a.mtime || 0) - (b.mtime || 0) || a.name.localeCompare(b.name, undefined, opts);
+    case "size_desc": return (b.size || 0) - (a.size || 0) || a.name.localeCompare(b.name, undefined, opts);
+    case "size_asc": return (a.size || 0) - (b.size || 0) || a.name.localeCompare(b.name, undefined, opts);
+    default: return a.name.localeCompare(b.name, undefined, opts);
+  }
+}
+
+function processedEntries(data) {
+  const q = state.search;
+  const dirs = (data.dirs || []).filter((d) => !q || d.name.toLowerCase().includes(q));
+  const files = (data.files || []).filter((f) => !q || f.name.toLowerCase().includes(q));
+  dirs.sort(cmpEntries);
+  files.sort(cmpEntries);
+  return { dirs, files };
+}
+
+function visibleEntries(data = state.lastData) {
+  const { dirs, files } = processedEntries(data);
+  return [...dirs, ...files];
 }
 
 function renderBreadcrumb() {
@@ -466,16 +579,37 @@ function renderBreadcrumb() {
   });
   $("#breadcrumb").innerHTML = html;
   $$("#breadcrumb .crumb").forEach((btn) =>
-    btn.addEventListener("click", () => { state.path = btn.dataset.p; browse(); }));
+    btn.addEventListener("click", () => {
+      state.path = btn.dataset.p;
+      state.search = "";
+      $("#media-search").value = "";
+      browse();
+    }));
+}
+
+function fileRel(name) {
+  return state.path ? `${state.path}/${name}` : name;
+}
+
+function thumbUrl(name) {
+  return `/api/dirs/${state.dirId}/thumb?path=${encodeURIComponent(fileRel(name))}`;
+}
+
+function fileUrl(name, dl = 0) {
+  return `/api/dirs/${state.dirId}/file?path=${encodeURIComponent(fileRel(name))}${dl ? "&dl=1" : ""}`;
 }
 
 function renderGrid(data) {
+  state.lastData = data;
   renderBreadcrumb();
   const grid = $("#grid");
   const empty = $("#empty-state");
+  const status = $("#browser-status");
+  grid.className = "grid" + (state.layout === "list" ? " list" : "");
 
   if (!state.dirId) {
     grid.innerHTML = "";
+    status.textContent = "";
     empty.classList.remove("hidden");
     empty.innerHTML = `<div class="big">📂</div>
       <div><b>${esc(t("no_dirs_title"))}</b></div>
@@ -483,43 +617,104 @@ function renderGrid(data) {
     return;
   }
 
-  const all = [...data.dirs, ...data.files];
-  if (!all.length) {
+  const { dirs, files } = processedEntries(data);
+  const entries = [...dirs, ...files];
+  state.viewFiles = files;
+  const shown = entries.slice(0, state.page * PAGE_SIZE);
+  const more = entries.length - shown.length;
+
+  const totalSize = files.reduce((acc, f) => acc + (f.size || 0), 0);
+  const counts = [`📁 ${dirs.length}`, `📄 ${files.length}`];
+  if (files.length) counts.push(fmtSize(totalSize));
+  if (state.search) {
+    status.textContent = `${t("found_label")}: ${entries.length}`;
+  } else {
+    status.textContent = counts.join(" · ");
+  }
+  if (more > 0) status.textContent += ` · ${t("shown_of")(shown.length, entries.length)}`;
+
+  if (!entries.length) {
     grid.innerHTML = "";
     empty.classList.remove("hidden");
-    empty.innerHTML = `<div class="big">🗂️</div><div>${esc(t("folder_empty"))}</div>`;
+    if (state.search) {
+      empty.innerHTML = `<div class="big">🔍</div>
+        <div><b>${esc(t("nothing_found"))}</b></div>
+        <div style="margin-top:6px">${esc(t("nothing_found_hint"))}</div>`;
+    } else {
+      empty.innerHTML = `<div class="big">🗂️</div><div>${esc(t("folder_empty"))}</div>`;
+    }
     return;
   }
   empty.classList.add("hidden");
 
-  grid.innerHTML = all.map((item) => {
-    if (item.type === "dir") {
-      return `<div class="media-card" data-dir="${esc(item.name)}">
-        <div class="card-thumb"><span class="thumb-fallback">${TYPE_ICONS.dir}</span></div>
-        <div class="card-name">${esc(item.name)}</div>
-        <div class="card-meta">${esc(t("folder_word"))} · ${fmtDate(item.mtime)}</div>
-      </div>`;
-    }
-    const thumb = item.has_thumb
-      ? `<img loading="lazy" src="/api/dirs/${state.dirId}/thumb?path=${encodeURIComponent(state.path ? state.path + "/" + item.name : item.name)}" alt="">`
-      : `<span class="thumb-fallback">${TYPE_ICONS[item.type] || TYPE_ICONS.file}</span>`;
-    return `<div class="media-card" data-file="${esc(item.name)}">
-      <div class="card-thumb">${thumb}<span class="type-badge">${TYPE_ICONS[item.type] || TYPE_ICONS.file}</span></div>
-      <div class="card-name">${esc(item.name)}</div>
-      <div class="card-meta">${fmtSize(item.size)} · ${fmtDate(item.mtime)}</div>
-    </div>`;
-  }).join("");
+  const rows = shown.map((item) => (state.layout === "list" ? listRow(item) : cardHtml(item)));
+  if (more > 0) {
+    rows.push(`<div class="load-more-wrap">
+      <button class="btn ghost" id="load-more-btn">${esc(t("load_more"))} (${more})</button>
+    </div>`);
+  }
+  grid.innerHTML = rows.join("");
+
+  const loadBtn = $("#load-more-btn");
+  if (loadBtn) loadBtn.addEventListener("click", () => {
+    state.page += 1;
+    renderGrid(state.lastData);
+  });
 
   grid.querySelectorAll("[data-dir]").forEach((el) =>
-    el.addEventListener("click", () => {
-      state.path = state.path ? `${state.path}/${el.dataset.dir}` : el.dataset.dir;
+    el.addEventListener("click", (e) => {
+      if (e.target.closest(".lr-dl, .card-dl")) return;
+      state.path = fileRel(el.dataset.dir);
+      state.search = "";
+      $("#media-search").value = "";
       browse();
     }));
   grid.querySelectorAll("[data-file]").forEach((el) =>
-    el.addEventListener("click", () => {
-      const item = data.files.find((f) => f.name === el.dataset.file);
-      if (item) openViewer(item);
+    el.addEventListener("click", (e) => {
+      if (e.target.closest(".lr-dl, .card-dl")) return;
+      const name = el.dataset.file;
+      const idx = state.viewFiles.findIndex((f) => f.name === name);
+      const item = state.viewFiles[idx];
+      if (item) openViewer(item, idx);
     }));
+}
+
+function cardHtml(item) {
+  if (item.type === "dir") {
+    return `<div class="media-card" data-dir="${esc(item.name)}" title="${esc(item.name)}">
+      <div class="card-thumb"><span class="thumb-fallback">${TYPE_ICONS.dir}</span></div>
+      <div class="card-name">${esc(item.name)}</div>
+      <div class="card-meta">${esc(t("folder_word"))} · ${fmtDate(item.mtime)}</div>
+    </div>`;
+  }
+  const thumb = item.has_thumb
+    ? `<img loading="lazy" src="${thumbUrl(item.name)}" alt="">`
+    : `<span class="thumb-fallback">${TYPE_ICONS[item.type] || TYPE_ICONS.file}</span>`;
+  return `<div class="media-card" data-file="${esc(item.name)}" title="${esc(item.name)}">
+    <div class="card-thumb">${thumb}
+      <a class="card-dl" href="${fileUrl(item.name, 1)}" title="${esc(t("download_btn"))}">⬇</a>
+      <span class="type-badge">${TYPE_ICONS[item.type] || TYPE_ICONS.file}</span>
+    </div>
+    <div class="card-name">${esc(item.name)}</div>
+    <div class="card-meta">${fmtSize(item.size)} · ${fmtDate(item.mtime)}</div>
+  </div>`;
+}
+
+function listRow(item) {
+  if (item.type === "dir") {
+    return `<div class="list-row" data-dir="${esc(item.name)}">
+      <span class="lr-icon">${TYPE_ICONS.dir}</span>
+      <span class="lr-name" title="${esc(item.name)}">${esc(item.name)}</span>
+      <span class="lr-meta">${fmtDate(item.mtime)}</span>
+    </div>`;
+  }
+  return `<div class="list-row" data-file="${esc(item.name)}">
+    <span class="lr-icon">${TYPE_ICONS[item.type] || TYPE_ICONS.file}</span>
+    <span class="lr-name" title="${esc(item.name)}">${esc(item.name)}</span>
+    <span class="lr-meta">${fmtSize(item.size)}</span>
+    <span class="lr-meta">${fmtDate(item.mtime)}</span>
+    <a class="icon-btn lr-dl" href="${fileUrl(item.name, 1)}" title="${esc(t("download_btn"))}">⬇</a>
+  </div>`;
 }
 
 /* --- новая папка --- */
@@ -533,15 +728,18 @@ $("#mkdir-btn").addEventListener("click", async () => {
   } catch (err) { toast(err.message, "error"); }
 });
 
-/* ================= Просмотрщик ================= */
+/* ================= Просмотрщик с навигацией ================= */
 
-function fileUrl(name, dl = 0) {
-  const rel = state.path ? `${state.path}/${name}` : name;
-  return `/api/dirs/${state.dirId}/file?path=${encodeURIComponent(rel)}${dl ? "&dl=1" : ""}`;
+function openViewer(item, index) {
+  state.currentFile = item;
+  state.viewerIndex = index;
+  renderViewer();
+  $("#viewer").classList.remove("hidden");
 }
 
-function openViewer(item) {
-  state.currentFile = item;
+function renderViewer() {
+  const item = state.currentFile;
+  if (!item) return;
   const url = fileUrl(item.name);
   const content = $("#viewer-content");
   $("#viewer-title").textContent = item.name;
@@ -562,26 +760,81 @@ function openViewer(item) {
     <span>${esc(t("viewer_size"))}: ${fmtSize(item.size)}</span>
     <span>${esc(t("viewer_modified"))}: ${fmtDate(item.mtime)}</span>`;
 
+  const n = state.viewFiles.length;
+  $("#viewer-counter").textContent = n ? `${state.viewerIndex + 1} / ${n}` : "";
+  $("#viewer-prev").disabled = n < 2;
+  $("#viewer-next").disabled = n < 2;
+
   const video = content.querySelector("video");
   if (video) video.volume = 0.9;
-  $("#viewer").classList.remove("hidden");
 }
+
+function navFile(delta) {
+  const n = state.viewFiles.length;
+  if (!n) return;
+  let idx = state.viewerIndex + delta;
+  if (idx < 0) idx = n - 1;
+  if (idx >= n) idx = 0;
+  state.currentFile = state.viewFiles[idx];
+  state.viewerIndex = idx;
+  renderViewer();
+}
+
+$("#viewer-prev").addEventListener("click", () => navFile(-1));
+$("#viewer-next").addEventListener("click", () => navFile(1));
+
+document.addEventListener("keydown", (e) => {
+  if ($("#viewer").classList.contains("hidden")) {
+    if (e.key === "Escape") {
+      $("#dir-modal").classList.add("hidden");
+      $("#settings-modal").classList.add("hidden");
+    }
+    return;
+  }
+  if (e.key === "ArrowLeft") { e.preventDefault(); navFile(-1); }
+  else if (e.key === "ArrowRight") { e.preventDefault(); navFile(1); }
+  else if (e.key === "Escape") {
+    $("#viewer").classList.add("hidden");
+    closeViewer();
+  }
+});
+
+let touchStartX = null;
+let touchStartY = null;
+$("#viewer-content").addEventListener("touchstart", (e) => {
+  touchStartX = e.touches[0].clientX;
+  touchStartY = e.touches[0].clientY;
+}, { passive: true });
+$("#viewer-content").addEventListener("touchend", (e) => {
+  if (touchStartX == null) return;
+  const dx = e.changedTouches[0].clientX - touchStartX;
+  const dy = e.changedTouches[0].clientY - touchStartY;
+  touchStartX = null;
+  if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+    navFile(dx > 0 ? -1 : 1);
+  }
+}, { passive: true });
 
 function closeViewer() {
   $("#viewer-content").innerHTML = "";
-  $("#viewer").classList.add("hidden");
   state.currentFile = null;
+  state.viewerIndex = -1;
 }
 
 $("#viewer-delete").addEventListener("click", async () => {
   const f = state.currentFile;
   if (!f) return;
   if (!confirm(t("delete_confirm")(f.name))) return;
-  const rel = state.path ? `${state.path}/${f.name}` : f.name;
   try {
-    await api(`/api/dirs/${state.dirId}/delete`, { method: "POST", body: { path: rel } });
+    await api(`/api/dirs/${state.dirId}/delete`, { method: "POST", body: { path: fileRel(f.name) } });
+    const deletedIndex = state.viewerIndex;
     closeViewer();
-    browse();
+    $("#viewer").classList.add("hidden");
+    await browse();
+    if (state.viewFiles.length) {
+      const nextIdx = Math.min(deletedIndex, state.viewFiles.length - 1);
+      openViewer(state.viewFiles[nextIdx], nextIdx);
+    }
     toast(t("deleted"), "success");
   } catch (err) { toast(err.message, "error"); }
 });
@@ -872,18 +1125,10 @@ $$("[data-close]").forEach((el) =>
     if (el.dataset.close === "viewer") closeViewer();
   }));
 
-document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") {
-    $("#viewer").classList.add("hidden");
-    closeViewer();
-    $("#dir-modal").classList.add("hidden");
-    $("#settings-modal").classList.add("hidden");
-  }
-});
-
 /* ================= Старт ================= */
 
 applyLang();
+renderToolbarState();
 api("/api/auth/status").then((s) => {
   if (s.authenticated) showApp();
   else showLogin();

@@ -5,6 +5,8 @@ A self-hosted personal media vault with a web UI: browse and stream your collect
 ## Features
 
 - **Media browsing** — gallery with thumbnails (video via ffmpeg, images via Pillow), video player with seeking (HTTP Range), image and audio preview, download and delete
+- **File explorer** — search within folder, sorting (name/date/size), grid or list view, pagination with infinite scroll for folders with thousands of files
+- **Viewer** — flip through photos and videos with ‹ › buttons, keyboard arrows or touch swipes; item counter; quick download from card hover
 - **yt-dlp** — fetch video info (title, duration, thumbnail, full format list), pick *Best quality* / *Audio only (MP3)* / a specific format; live progress, speed, ETA, cancel
 - **Direct URLs** — download arbitrary files with progress and auto-rename on collision
 - **Directories** — connect multiple server folders, navigate, create folders, delete files
